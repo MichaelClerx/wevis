@@ -245,9 +245,17 @@ class Message(object):
     def definition(self):
         return self._definition
 
-    def get(self, name):
-        """ Returns the argument identified by ``name``. """
-        return self._argument_values[name]
+    def get(self, *name):
+        """
+        Returns one or multiple arguments.
+
+            message.get('x') --> x
+            message.get('x', 'y') --> (x, y)
+
+        """
+        if len(name) == 1:
+            return self._argument_values[name[0]]
+        return (self._argument_values[x] for x in name)
 
     @property
     def name(self):

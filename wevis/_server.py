@@ -505,7 +505,7 @@ class Connection(object):
             f'{random.random()}-ben-nevis')
 
         # Create and send ready message
-        self._manager.log.info('Sending welcome message')
+        self._manager.log.debug('Sending welcome message')
         self._writer.send_blocking(wevis.Message('_welcome', salt=self._salt))
 
         # Set time-out for login
@@ -572,7 +572,7 @@ class Connection(object):
                 self._ping_sent = False
                 self._ping_time = time.time() + Connection.PING_INTERVAL
             else:
-                self._manager.log.info(
+                self._manager.log.debug(
                     f'Received message {message} from {self._user.name}')
                 # Send message to its destination
                 # TODO: Allow multiple rooms etc.

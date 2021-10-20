@@ -176,20 +176,20 @@ class Client(threading.Thread):
             raise RuntimeError('Already connected.')
 
         # Create socket connection
-        self._log.info('Creating socket')
+        self._log.debug('Creating socket')
         self._conn = socket.socket()
         self._conn.connect((self._host, self._port))
         self._conn.setblocking(False)
 
         # Create message reader and writer
-        self._log.info('Creating message I/O')
+        self._log.debug('Creating message I/O')
         self._reader = wevis.MessageReader(self._conn)
         self._writer = wevis.MessageWriter(self._conn)
 
         # Send login credentials
-        self._log.info('Receiving first data')
+        self._log.debug('Receiving first data')
         ready = self._receive_blocking('_welcome')
-        self._log.info('Welcome received')
+        self._log.debug('Welcome received')
 
         self._writer.send_blocking(wevis.Message(
             '_login',
@@ -247,7 +247,7 @@ class Client(threading.Thread):
         :class:`UnexpectedMessageError`.
         """
         message = self._reader.read_blocking()
-        self._log.info(f'Received message: {message}')
+        self._log.debug(f'Received message: {message}')
 
         if expected and message.name not in expected:
             raise UnexpectedMessageError(expected, message)
@@ -287,7 +287,7 @@ class Client(threading.Thread):
                         self._log.debug('Ping!')
                         self.q('_pong')
                     else:
-                        self._log.info(f'Received message {message}')
+                        self._log.debug(f'Received message {message}')
                         self._incoming.put(message)
 
                     # Read next message
