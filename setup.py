@@ -3,6 +3,11 @@
 #
 from setuptools import setup, find_packages
 
+# Load text from readme
+with open('README.md') as f:
+    readme = f.read()
+
+
 # Go!
 setup(
     # Module name (lowercase)
@@ -11,8 +16,8 @@ setup(
 
     # Description
     description='Client/Server IO for "Where\'s Ben Nevis".',
-    #long_description=readme,
-    #long_description_content_type='text/markdown',
+    long_description=readme,
+    long_description_content_type='text/markdown',
 
     # License name
     license='BSD 3-clause license',
