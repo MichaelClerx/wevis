@@ -1,0 +1,16 @@
+# Ignore compiled .pyc files
+*.pyc
+__pycache__
+
+# Ignore installation files
+*.egg-info
+
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# Virtual environments
+venv
+
+# DS Store
+.DS_Store
+
