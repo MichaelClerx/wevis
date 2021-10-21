@@ -26,7 +26,7 @@ class MessageDefinition(object):
     _messages = {}
     _ids = {}
     _last_id = 0
-    TYPES = {int: 'i', str: 's', float: 'd'}
+    TYPES = {int: 'i', float: 'd', str: 's', bytes: 'b'}
 
     def __init__(self, _name, **_arguments):
         """
@@ -56,9 +56,8 @@ class MessageDefinition(object):
         self._arguments = {}
 
         # Create the packing code for this message's fixed-size part and
-        # calculate its size. Use the field ``packBulk`` to store tuples
-        # (index, type) to store the index and type of the variable size
-        # arguments.
+        # calculate its size. Use the field ``_vectors`` to store tuples
+        # (index, type) with the index and type of variable size arguments.
         self._pack_code = [b'<']
         self._pack_size = 0
         self._vectors = []
@@ -74,6 +73,10 @@ class MessageDefinition(object):
                 self._pack_code.append(b'i')
                 self._pack_size += 4
                 self._vectors.append((i, str))
+            elif kind == bytes:
+                self._pack_code.append(b'i')
+                self._pack_size += 4
+                self._vectors.append((i, bytes))
             else:
                 raise AttributeError('Unknown argument type <' + kind + '>.')
             i += 1
@@ -144,19 +147,26 @@ class MessageDefinition(object):
         vectors = []
         vector_code = [b'<']
         for i, kind in self._vectors:
+
             # Get value, length of value
-            v = fixed[i].encode('utf-8')
-            n = len(v)
-            # Replace value in fixed list with length of value
-            fixed[i] = n
-            # Add value to list of vector data
-            vectors.append(v)
-            # Add packing code to list of vector packing codes
-            vector_code.append(str(n).encode('utf-8'))
             if kind == str:
-                vector_code.append(b's')
+                v = fixed[i].encode('utf-8')
+            elif kind == bytes:
+                v = fixed[i]
             else:
                 raise Exception(f'Unknown vector variable type {kind}.')
+            n = len(v)
+
+            # Replace value in fixed list with length of value
+            fixed[i] = n
+
+            # Add value to list of vector data
+            vectors.append(v)
+
+            # Add packing code to list of vector packing codes
+            vector_code.append(str(n).encode('utf-8'))
+            if kind in (str, bytes):
+                vector_code.append(b's')
 
         # Pack fixed size arguments
         b += struct.pack(self._pack_code, *fixed)
@@ -187,7 +197,7 @@ class MessageDefinition(object):
             code = [b'<']
             for i, kind in definition._vectors:
                 code.append(str(fixed[i]).encode('utf-8'))
-                if kind == str:
+                if kind in (str, bytes):
                     code.append(b's')
                 else:
                     raise Exception(f'Unknown data type {kind}.')
@@ -202,6 +212,8 @@ class MessageDefinition(object):
         for name, kind in definition._arguments.items():
             if kind == str:
                 args[name] = next(vectors).decode('utf-8')
+            elif kind == bytes:
+                args[name] = next(vectors)
             else:
                 args[name] = next(fixed)
         message.set(**args)
@@ -214,8 +226,6 @@ class MessageDefinition(object):
         """ Registers built-in and custom messages. """
         if MessageDefinition._initialized:
             raise Exception("Message definitions are already initialized")
-
-
 
 
 class Message(object):

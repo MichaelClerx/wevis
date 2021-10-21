@@ -163,11 +163,7 @@ class Server(threading.Thread):
         self._listener.start()
         self._room.start()
         while not self._halt.is_set():
-            # Check if anything has crashed
-            #if not (self._manager.is_alive() and self._listener.is_alive()):
-            #    self._halt.set()
-            #    break
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         # Check if everything is shutting down here. Then delete the objects
         if self._listener.is_alive():
