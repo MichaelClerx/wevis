@@ -390,9 +390,9 @@ class Connection(object):
         The ip address for this connection.
 
     """
-    PING_INTERVAL = 5   # TODO: Set to longer times
-    PING_TIMEOUT = 2
-    LOGIN_TIMEOUT = 2
+    PING_INTERVAL = 10
+    PING_TIMEOUT = 5
+    LOGIN_TIMEOUT = 5
 
     def __init__(self, manager, conn, addr):
 
