@@ -125,16 +125,13 @@ class Server(threading.Thread):
 
     @property
     def halt_event(self):
-        """
-        Returns a flag that can be set to shut the server down.
-        """
+        """ Returns a flag that can be set to shut the server down. """
         return self._halt
 
     def launch(self):
         """
         Starts this server, and continues until an exception occurs (e.g. a
-        ``KeyboardInterrupt``.
-
+        ``KeyboardInterrupt``).
         """
         self.start()
         try:
@@ -200,17 +197,13 @@ class Server(threading.Thread):
 
     @property
     def room(self):
-        """
-        Returns this server's only room.
-        """
+        """ Returns this server's only room. """
         # TODO: Allow multiple rooms
         return self._room
 
     @property
     def socket(self):
-        """
-        Returns this server's socket.
-        """
+        """ Returns this server's socket. """
         return self._sock
 
     def stop(self, exception=None):
@@ -225,11 +218,6 @@ class Server(threading.Thread):
         if exception is not None:
             self._exception = exception
         self._halt.set()
-
-    @property
-    def version(self):
-        """ A tuple of version ints ``(major, minor, revision)``"""
-        return self._version
 
 
 class Listener(threading.Thread):
@@ -538,6 +526,7 @@ class Connection(object):
                 self._manager.log.info(f'Accepted login from {user}.')
                 self._writer.send_blocking(wevis.Message('_loginAccept'))
                 self._user = user
+                self._manager.server.room.welcome(self)
             else:
                 self._writer.send_blocking(wevis.Message(
                     '_loginReject', reason='Invalid credentials.'))
@@ -673,3 +662,10 @@ class Room(threading.Thread):
             raise ValueError('Server must be a wevis.Server.')
         self._server = server
 
+    def welcome(self, connection):
+        """
+        Overwrite this method to send welcome messages to users.
+
+        This function is called whenever a new connection is established.
+        """
+        pass
