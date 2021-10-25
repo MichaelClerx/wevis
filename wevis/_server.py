@@ -21,9 +21,6 @@ import time
 
 import wevis
 
-_server_sleep = 0.1
-
-
 
 class Server(threading.Thread):
     """
@@ -189,7 +186,7 @@ class Server(threading.Thread):
         if self._exception:
             try:
                 raise self._exception
-            except:
+            except Exception:
                 self._log.critical(
                     'Server halted with exception', exc_info=True)
         else:

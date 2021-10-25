@@ -4,6 +4,7 @@
 #
 import wevis
 
+
 def version_validator(major, minor, revision):
     return major >= 1
 
