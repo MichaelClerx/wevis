@@ -9,6 +9,9 @@ default_port = 12121
 # Default initial logging level, or None
 logging_level = None
 
+# Maximum connections per user
+max_connections_per_user = 1
+
 
 # Shared string hashing function
 def encrypt(password, salt):

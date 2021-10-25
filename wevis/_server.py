@@ -307,6 +307,9 @@ class Manager(threading.Thread):
         # Active connections
         self._connections = []
 
+        # Number of activate connections per user
+        self._user_counts = {}
+
         # Incoming connections, as tuples ``(socket, address)``.
         self._incoming = queue.Queue()
 
@@ -372,6 +375,37 @@ class Manager(threading.Thread):
         """ This manager's server. """
         return self._server
 
+    def user_count(self, user):
+        """
+        Returns the number of active connections for the given ``user``.
+        """
+        return self._user_counts.get(user.name, 0)
+
+    def user_enter(self, connection):
+        """ Called when a user connects. """
+        # Update connection count
+        try:
+            self._user_counts[connection.user.name] += 1
+        except KeyError:
+            self._user_counts[connection.user.name] = 1
+        self._log.debug(
+            f'User {connection.user.name} has'
+            f' {self._user_counts[connection.user.name]} active connections.')
+
+        # Notify room
+        self.server.room.user_enter(connection)
+
+    def user_exit(self, user):
+        """ Called when a user disconnects. """
+        # Update connection count
+        self._user_counts[user.name] -= 1
+        self._log.debug(
+            f'User {user.name} has {self._user_counts[user.name]} active'
+            ' connections.')
+
+        # Notify room
+        self.server.room.user_exit(user)
+
 
 class Connection(object):
     """
@@ -434,7 +468,8 @@ class Connection(object):
         ``return self.close('Something went wrong')``.
         """
         if self._alive:
-            self._manager.server.room.user_exit(self)
+            if self._user:
+                self._manager.user_exit(self._user)
 
             if reason:
                 self._manager.log.info(f'Closing connection: {reason}')
@@ -521,15 +556,27 @@ class Connection(object):
             # Validate login credentials
             user = self._manager.server._user_validator(
                 message.get('username'), message.get('password'), self._salt)
-            if user:
-                self._manager.log.info(f'Accepted login from {user}.')
-                self._writer.send_blocking(wevis.Message('_loginAccept'))
-                self._user = user
-                self._manager.server.room.user_enter(self)
-            else:
+            if not user:
                 self._writer.send_blocking(wevis.Message(
                     '_loginReject', reason='Invalid credentials.'))
                 return self.close('Rejected login: invalid credentials.')
+
+            # Validate user count: Do this after password validation so that we
+            # don't give out info on whether users are logged in or not.
+            count = self._manager.user_count(user)
+            if count >= wevis.max_connections_per_user:
+                self._writer.send_blocking(wevis.Message(
+                    '_loginReject',
+                    reason='Maximum number of connections per user reached.'))
+                return self.close(
+                    'Rejected login: maximum number of connections per user'
+                    ' reached.')
+
+            # Accept
+            self._manager.log.debug(f'Accepted login from {user}.')
+            self._writer.send_blocking(wevis.Message('_loginAccept'))
+            self._user = user
+            self._manager.user_enter(self)
 
         # Login must happen within x seconds
         elif time.time() > self._ping_time:
