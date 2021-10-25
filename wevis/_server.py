@@ -434,6 +434,8 @@ class Connection(object):
         ``return self.close('Something went wrong')``.
         """
         if self._alive:
+            self._manager.server.room.user_exit(self)
+
             if reason:
                 self._manager.log.info(f'Closing connection: {reason}')
             else:
@@ -441,10 +443,10 @@ class Connection(object):
 
             try:
                 self._conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            finally:
                 self._conn.close()
-            except Exception:
-                self._manager.log.error(
-                    'Error closing connection.', exc_info=True)
 
             self._alive = False
             self._user = None
@@ -523,7 +525,7 @@ class Connection(object):
                 self._manager.log.info(f'Accepted login from {user}.')
                 self._writer.send_blocking(wevis.Message('_loginAccept'))
                 self._user = user
-                self._manager.server.room.welcome(self)
+                self._manager.server.room.user_enter(self)
             else:
                 self._writer.send_blocking(wevis.Message(
                     '_loginReject', reason='Invalid credentials.'))
@@ -659,10 +661,19 @@ class Room(threading.Thread):
             raise ValueError('Server must be a wevis.Server.')
         self._server = server
 
-    def welcome(self, connection):
+    def user_enter(self, connection):
         """
-        Overwrite this method to send welcome messages to users.
+        This function is called whenever a user enters this room; overwrite it
+        to e.g. send welcome messages.
+        """
+        pass
 
-        This function is called whenever a new connection is established.
+    def user_exit(self, connection):
+        """
+        This function is called whenever a user leaves this room.
+
+        It can be overwritten for e.g. user management, but the ``connection``
+        may no longer be open at this point, so sending messages is not
+        advised.
         """
         pass
