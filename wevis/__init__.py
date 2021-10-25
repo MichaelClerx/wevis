@@ -2,6 +2,12 @@
 """
 Server/client module for Where's Ben Nevis.
 """
+import sys
+
+# Check Python version
+if sys.hexversion < 0x03050000:
+    raise RuntimeError('wevis requires Python 3.5 or newer.')
+
 
 # Default port
 default_port = 12121
@@ -86,3 +92,5 @@ MessageDefinition('_login', username=str, password=str,
 MessageDefinition('_loginReject', reason=str)
 MessageDefinition('_loginAccept')
 
+# Don't expose imported modules as part of the api
+del(sys)
