@@ -3,9 +3,14 @@
 Messages sent between clients and servers.
 """
 import errno
+import re
 import socket
 import struct
 import time
+
+# Message name regex
+NAME = re.compile(r'^[a-zA-Z_]\w*$')
+ARGS = re.compile(r'^[a-zA-Z]\w*$')
 
 
 class SocketClosedError(Exception):
@@ -38,19 +43,20 @@ class MessageDefinition(object):
         - The constructor argument names start with an underscore so that e.g.
           "name" can still be used for a message argument.
         """
+        # Make sure that the name is OK
+        if NAME.match(_name) is None:
+            raise ValueError(
+                'Message name must start with letter and consist only of'
+                ' letters, numbers, or underscores.')
 
         # Make sure that the message is not already defined
         if _name in self._messages:
-            raise AttributeError(f'Message "{_name}" already defined.')
+            raise ValueError(f'Message "{_name}" already defined.')
 
         # Private variables
         self._id = None         # Unique id for this definition
         self._name = _name      # This message's name
         self._arguments = {}    # Ordered list with attributes
-
-        # Assign a unique ID
-        MessageDefinition._last_id += 1
-        self._id = MessageDefinition._last_id
 
         # Store the arguments and argument types in alphabetical order
         self._arguments = {}
@@ -63,6 +69,10 @@ class MessageDefinition(object):
         self._vectors = []
         i = 0
         for name, kind in sorted(_arguments.items(), key=lambda x: x[0]):
+            if ARGS.match(name) is None:
+                raise ValueError(
+                    'Message argument name must start with letter and consist'
+                    ' only of letters, numbers, or underscores.')
             if kind == int:
                 self._pack_code.append(b'i')
                 self._pack_size += 4
@@ -78,10 +88,14 @@ class MessageDefinition(object):
                 self._pack_size += 4
                 self._vectors.append((i, bytes))
             else:
-                raise AttributeError('Unknown argument type <' + kind + '>.')
+                raise ValueError('Unknown argument type <' + kind + '>.')
             i += 1
             self._arguments[name] = kind
         self._pack_code = b''.join(self._pack_code)
+
+        # Assign a unique ID
+        MessageDefinition._last_id += 1
+        self._id = MessageDefinition._last_id
 
         # Register this message definition
         MessageDefinition._messages[self._name] = self
@@ -453,9 +467,48 @@ class DefinitionList(object):
         self._definitions = {}
 
     @staticmethod
-    def load(path):
+    def from_file(path):
         """
         Loads definitions from a file.
         """
-        raise NotImplementedError('todo')
+        types = {
+            'int': int,
+            'float': float,
+            'str': str,
+            'bytes': bytes,
+        }
+
+        defs = DefinitionList()
+        with open(path, 'r') as f:
+            for line in f:
+
+                # Allow comments
+                try:
+                    line = line[:line.index('#')]
+                except ValueError:
+                    pass
+
+                # Skip empty lines
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Parse line
+                parts = [x.strip() for x in line.split(',')]
+                name = parts[0]
+                args = {}
+                for part in parts[1:]:
+                    try:
+                        n, t = [x.strip() for x in part.split('=')]
+                    except ValueError:
+                        raise ValueError(
+                            'Arguments must be specified as name=type')
+                    try:
+                        t = types[t]
+                    except KeyError:
+                        raise ValueError(f'Unknown type: {t}.')
+                    args[n] = t
+
+                defs.add(name, **args)
+        return defs
 
