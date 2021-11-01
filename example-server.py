@@ -33,11 +33,7 @@ if __name__ == '__main__':
     wevis.set_logging_level(logging.DEBUG)
     logging.basicConfig(stream=sys.stdout)
 
-    defs = wevis.DefinitionList()
-    defs.add('WhatTimeIsIt')
-    defs.add('ItIs', hours=int, minutes=int)
-    defs.add('WhoAmI')
-    defs.add('YouAre', name=str)
+    defs = wevis.DefinitionList.from_file('example-definitions')
     defs.instantiate()
 
     room = TimeRoom()

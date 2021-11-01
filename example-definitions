@@ -1,0 +1,8 @@
+# Time-commands
+WhatTimeIsIt
+ItIs, hours=int, minutes=int
+
+# Identify commands
+WhoAmI
+YouAre, name=str
+

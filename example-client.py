@@ -8,11 +8,7 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stdout)
 
-defs = wevis.DefinitionList()
-defs.add('WhatTimeIsIt')
-defs.add('ItIs', hours=int, minutes=int)
-defs.add('WhoAmI')
-defs.add('YouAre', name=str)
+defs = wevis.DefinitionList.from_file('example-definitions')
 defs.instantiate()
 
 version = (1, 0, 0)

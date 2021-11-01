@@ -9,7 +9,8 @@ Users of ``wevis`` write two programs: a server and a client.
 A single instance of the server program is started, and several clients can connect to it.
 There is an initial password protected log-in, which is handled mostly by the server.
 After this, the server and client communicate by sending ``wevis`` _messages_ back and forth over a TCP connection.
-Each message is a predefined (user-defined) type, and has a name and a fixed number of arguments.
+Each message is of a predefined type, and has a name and a fixed number of arguments.
+Both server and client have a local copy of this list of user-defined message types.
 
 ### Parallelism
 
@@ -60,16 +61,35 @@ if __name__ == '__main__':
     wevis.set_logging_level(logging.DEBUG)
     logging.basicConfig(stream=sys.stdout)
 
+    defs = wevis.DefinitionList.from_file('example-definitions')
+    defs.instantiate()
+
+    room = TimeRoom()
+    server = wevis.Server(version_validator, user_validator, room)
+    server.launch()
+```
+
+The message definitions can be writen in code:
+
+```
     defs = wevis.DefinitionList()
     defs.add('WhatTimeIsIt')
     defs.add('ItIs', hours=int, minutes=int)
     defs.add('WhoAmI')
     defs.add('YouAre', name=str)
     defs.instantiate()
+```
 
-    room = TimeRoom()
-    server = wevis.Server(version_validator, user_validator, room)
-    server.launch()
+but in this example they are loaded from a plain text file:
+
+```
+# Time-commands
+WhatTimeIsIt
+ItIs, hours=int, minutes=int
+
+# Identify commands
+WhoAmI
+YouAre, name=str
 ```
 
 Here, the code for ``launch()`` simply starts and monitors the server thread:
@@ -101,11 +121,7 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stdout)
 
-defs = wevis.DefinitionList()
-defs.add('WhatTimeIsIt')
-defs.add('ItIs', hours=int, minutes=int)
-defs.add('WhoAmI')
-defs.add('YouAre', name=str)
+defs = wevis.DefinitionList.from_file('example-definitions')
 defs.instantiate()
 
 version = (1, 0, 0)
@@ -129,4 +145,6 @@ This software is based on an earlier project, "remote science", by Michael Clerx
 
 ## License
 
-This code can be freely re-used. See [LICENSE.txt](LICENSE.txt) for details.
+This code can be freely re-used and adapted.
+See [LICENSE.txt](LICENSE.txt) for details.
+
