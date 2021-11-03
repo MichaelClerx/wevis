@@ -65,7 +65,7 @@ class Server(threading.Thread):
         self._log = logging.getLogger(name)
         if wevis._LOGGING_LEVEL is not None:
             self._log.setLevel(wevis._LOGGING_LEVEL)
-        self._log.info('Creating server')
+        self._log.info(f'Creating server. Using wevis {wevis.__version__}')
 
         # Status
         self._status = Server.PRE_RUN
