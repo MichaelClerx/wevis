@@ -7,12 +7,14 @@ from setuptools import setup, find_packages
 with open('README.md') as f:
     readme = f.read()
 
+# Load version number
+exec(open('wevis/_version.py').read())
 
 # Go!
 setup(
     # Module name (lowercase)
     name='wevis',
-    version='0.0.1',
+    version=__version__,
 
     # Description
     description='Client/Server IO for "Where\'s Ben Nevis".',

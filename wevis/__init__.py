@@ -9,7 +9,7 @@ if sys.hexversion < 0x03050000:
     raise RuntimeError('wevis requires Python 3.5 or newer.')
 
 # Wevis version
-__version__ = '0.0.2'
+from ._version import __version__
 
 # Default port
 _DEFAULT_PORT = 12121
