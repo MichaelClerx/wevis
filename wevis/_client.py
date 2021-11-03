@@ -108,8 +108,8 @@ class Client(threading.Thread):
 
         # Logger
         self._log = logging.getLogger(name)
-        if wevis.logging_level is not None:
-            self._log.setLevel(wevis.logging_level)
+        if wevis._LOGGING_LEVEL is not None:
+            self._log.setLevel(wevis._LOGGING_LEVEL)
         self._log.info('Creating client')
 
         # Version
@@ -124,7 +124,7 @@ class Client(threading.Thread):
 
         # Host and port
         self._host = host if host else socket.gethostname()
-        self._port = port if port else wevis.default_port
+        self._port = port if port else wevis._DEFAULT_PORT
         del(host, port)
 
         # Socket
@@ -188,7 +188,7 @@ class Client(threading.Thread):
 
         # Send login credentials
         self._log.debug('Receiving first data')
-        ready = self._receive_blocking('_welcome')
+        ready = self._receive_blocking_internal('_welcome')
         self._log.debug('Welcome received')
 
         self._writer.send_blocking(wevis.Message(
@@ -201,7 +201,8 @@ class Client(threading.Thread):
         ))
 
         # Check result
-        result = self._receive_blocking('_loginAccept', '_loginReject')
+        result = self._receive_blocking_internal(
+            '_loginAccept', '_loginReject')
         if result.name == '_loginReject':
             self.close()
             raise ConnectionError(f'Login rejected: {result.get("reason")}')
@@ -229,7 +230,7 @@ class Client(threading.Thread):
         while message is None and not self._halt.is_set():
             message = self.receive()
             if message is None:
-                time.sleep(0.01)
+                time.sleep(wevis.CSLEEP_RECEIVE_BLOCKING)
         if message is None:
             # Halt set: discard message
             raise ClientError('Client shut down while waiting for message.')
@@ -237,7 +238,7 @@ class Client(threading.Thread):
             raise UnexpectedMessageError(expected, message)
         return message
 
-    def _receive_blocking(self, *expected):
+    def _receive_blocking_internal(self, *expected):
         """
         Receives a message (blocking). For internal use only (breaks pinging
         etc.).
@@ -246,7 +247,7 @@ class Client(threading.Thread):
         as extra arguments. In this case, any other messages will trigger an
         :class:`UnexpectedMessageError`.
         """
-        message = self._reader.read_blocking()
+        message = self._reader._read_blocking_internal()
         self._log.debug(f'Received message: {message}')
 
         if expected and message.name not in expected:
@@ -293,7 +294,7 @@ class Client(threading.Thread):
                     # Read next message
                     message = self._reader.read()
 
-                time.sleep(0.01)
+                time.sleep(wevis.CSLEEP_RUN)
         except Exception as e:
             self._log.error('Error during client run', exc_info=True)
             self._exception = e
@@ -322,7 +323,7 @@ class Client(threading.Thread):
         # Note: This method is for use by other threads
         self.start()
         while self._status in (Client.PRE_RUN, Client.PRE_CONNECT):
-            time.sleep(0.1)
+            time.sleep(wevis.CSLEEP_START_BLOCKING)
         if self._exception:
             raise ClientError('Unable to start client') from self._exception
 

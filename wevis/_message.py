@@ -8,6 +8,8 @@ import socket
 import struct
 import time
 
+import wevis
+
 # Message name regex
 NAME = re.compile(r'^[a-zA-Z_]\w*$')
 ARGS = re.compile(r'^[a-zA-Z]\w*$')
@@ -373,20 +375,22 @@ class MessageReader(object):
                 return message
         return None
 
-    def read_blocking(self, timeout=None):
+    def _read_blocking_internal(self, timeout=None):
         """
         Like :meth:`read` but blocks until a message is available.
+
+        Should be used with care, e.g. only during login.
         """
         message = self.read()
 
         if timeout:
             tmax = time.time() + float(timeout)
             while (not message) and (time.time() < tmax):
-                time.sleep(0.5)
+                time.sleep(wevis.SLEEP_READ_BLOCKING_INTERNAL)
                 message = self.read()
         else:
             while not message:
-                time.sleep(0.5)
+                time.sleep(wevis.SLEEP_READ_BLOCKING_INTERNAL)
                 message = self.read()
         return message
 

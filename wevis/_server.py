@@ -63,8 +63,8 @@ class Server(threading.Thread):
 
         # Logging
         self._log = logging.getLogger(name)
-        if wevis.logging_level is not None:
-            self._log.setLevel(wevis.logging_level)
+        if wevis._LOGGING_LEVEL is not None:
+            self._log.setLevel(wevis._LOGGING_LEVEL)
         self._log.info('Creating server')
 
         # Status
@@ -85,7 +85,7 @@ class Server(threading.Thread):
 
         # Host and port
         self._host = host if host else socket.gethostname()
-        self._port = port if port else wevis.default_port
+        self._port = port if port else wevis._DEFAULT_PORT
         del(host, port)
 
         # Create socket
@@ -98,8 +98,8 @@ class Server(threading.Thread):
         # over yet.
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        # Timeout for listening
-        self._sock.settimeout(0.5)
+        # Set socket to non-blocking mode
+        self._sock.setblocking(False)
 
         # Bind socket
         self._sock.bind((self._host, self._port))
@@ -133,7 +133,7 @@ class Server(threading.Thread):
         self.start()
         try:
             while self.is_alive():
-                time.sleep(0.1)
+                time.sleep(wevis.SSLEEP_LAUNCH)
         finally:
             self.stop()
         if self._exception:
@@ -157,23 +157,23 @@ class Server(threading.Thread):
         self._listener.start()
         self._room.start()
         while not self._halt.is_set():
-            time.sleep(0.1)
+            time.sleep(wevis.SSLEEP_SERVER)
 
         # Check if everything is shutting down here. Then delete the objects
         if self._listener.is_alive():
             self._log.info('Waiting for listener to shut down')
             while self._listener.is_alive():
-                time.sleep(0.1)
+                time.sleep(wevis.SSLEEP_SHUTDOWN)
             del(self._listener)
         if self._manager.is_alive():
             self._log.info('Waiting for manager to shut down')
             while self._manager.is_alive():
-                time.sleep(0.1)
+                time.sleep(wevis.SSLEEP_SHUTDOWN)
             del(self._manager)
         if self._room.is_alive():
             self._log.info('Waiting for room to shut down')
             while self._room.is_alive():
-                time.sleep(0.1)
+                time.sleep(wevis.SSLEEP_SHUTDOWN)
             del(self._room)
 
         # Close socket
@@ -237,8 +237,8 @@ class Listener(threading.Thread):
 
         # Logging
         self._log = logging.getLogger(name)
-        if wevis.logging_level is not None:
-            self._log.setLevel(wevis.logging_level)
+        if wevis._LOGGING_LEVEL is not None:
+            self._log.setLevel(wevis._LOGGING_LEVEL)
 
         # Arguments
         self._server = server
@@ -268,8 +268,7 @@ class Listener(threading.Thread):
                     # Pass new connection to manager
                     self._manager.add(conn, addr)
                 except socket.error:
-                    #TODO: Log these?
-                    pass
+                    time.sleep(wevis.SSLEEP_LISTENER)
 
         except Exception as e:
             self._server.stop(e)
@@ -295,8 +294,8 @@ class Manager(threading.Thread):
 
         # Logging
         self._log = logging.getLogger(name)
-        if wevis.logging_level is not None:
-            self._log.setLevel(wevis.logging_level)
+        if wevis._LOGGING_LEVEL is not None:
+            self._log.setLevel(wevis._LOGGING_LEVEL)
 
         # Arguments
         self._server = server
@@ -363,7 +362,7 @@ class Manager(threading.Thread):
                     c.tick()
 
                 # Sleep
-                time.sleep(0.01)
+                time.sleep(wevis.SSLEEP_MANAGER)
 
         except Exception as e:
             self._server.stop(e)
@@ -421,10 +420,6 @@ class Connection(object):
         The ip address for this connection.
 
     """
-    PING_INTERVAL = 10
-    PING_TIMEOUT = 5
-    LOGIN_TIMEOUT = 5
-
     def __init__(self, manager, conn, addr):
 
         # Manager
@@ -527,7 +522,7 @@ class Connection(object):
         self._writer.send_blocking(wevis.Message('_welcome', salt=self._salt))
 
         # Set time-out for login
-        self._ping_time = time.time() + Connection.LOGIN_TIMEOUT
+        self._ping_time = time.time() + wevis.LOGIN_TIMEOUT
 
     def tick_login(self):
         """ Login process. """
@@ -564,7 +559,7 @@ class Connection(object):
             # Validate user count: Do this after password validation so that we
             # don't give out info on whether users are logged in or not.
             count = self._manager.user_count(user)
-            if count >= wevis.max_connections_per_user:
+            if count >= wevis.MAX_CONNECTIONS_PER_USER:
                 self._writer.send_blocking(wevis.Message(
                     '_loginReject',
                     reason='Maximum number of connections per user reached.'))
@@ -601,7 +596,7 @@ class Connection(object):
             if message.name == '_pong':
                 self._manager.log.debug(f'Pong from {self._user.name}')
                 self._ping_sent = False
-                self._ping_time = time.time() + Connection.PING_INTERVAL
+                self._ping_time = time.time() + wevis.PING_INTERVAL
             else:
                 self._manager.log.debug(
                     f'Received message {message} from {self._user.name}')
@@ -623,7 +618,7 @@ class Connection(object):
                 self._manager.log.debug(f'Pinged {self._user.name}')
                 self.q('_ping')
                 self._ping_sent = True
-                self._ping_time = time.time() + Connection.PING_TIMEOUT
+                self._ping_time = time.time() + wevis.PING_TIMEOUT
 
     @property
     def user(self):
@@ -646,8 +641,8 @@ class Room(threading.Thread):
 
         # Logging
         self._log = logging.getLogger(name)
-        if wevis.logging_level is not None:
-            self._log.setLevel(wevis.logging_level)
+        if wevis._LOGGING_LEVEL is not None:
+            self._log.setLevel(wevis._LOGGING_LEVEL)
 
         # Run as daemon process
         self.setDaemon(True)
@@ -691,7 +686,7 @@ class Room(threading.Thread):
                             exc_info=True)
 
                 # Sleep
-                time.sleep(0.01)
+                time.sleep(wevis.SSLEEP_ROOM)
 
         except Exception as e:
             self._server.stop(e)

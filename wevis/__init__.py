@@ -10,13 +10,63 @@ if sys.hexversion < 0x03050000:
 
 
 # Default port
-default_port = 12121
+_DEFAULT_PORT = 12121
 
 # Default initial logging level, or None
-logging_level = None
+_LOGGING_LEVEL = None
 
+#
 # Maximum connections per user
-max_connections_per_user = 1
+#
+MAX_CONNECTIONS_PER_USER = 1
+
+#
+# Server sleep times (in seconds)
+# Note: sleep times should never be 0, although it's OK to set them very very
+# small.
+#
+# Room: Minimum delay between any two commands handled by room.
+SSLEEP_ROOM = 1e-6
+# Manager: Minimum delay between any two cycles of the manager. In each cycle
+#          the manager checks connections are alive, checks if new connections
+#          were passed in by the listener, and handles all queued commands.
+SSLEEP_MANAGER = 1e-6
+# Listener: Delay between two checks for a new connection
+SSLEEP_LISTENER = 0.2
+# Server launch: Time between two checks that the main thread is running
+SSLEEP_LAUNCH = 0.5
+# Server: Server only waits for halt signal, sleep time can be long.
+SSLEEP_SERVER = 0.5
+# Server shutdown: Time to wait for individual threads to shut down
+SSLEEP_SHUTDOWN = 1
+
+#
+# Client sleep times (in seconds)
+#
+# Receive a message in blocking mode: time between checks
+CSLEEP_RECEIVE_BLOCKING = 1e-12
+# Main thread: Minimum delay between any two cycles of the client. In each
+#              cycle the client sends and receives messages
+CSLEEP_RUN = 1e-12
+# Start blocking: Time between checks that the client has started (checks stop
+#                 as soon as the client is online).
+CSLEEP_START_BLOCKING = 0.1
+
+#
+# Shared
+#
+# When establishing a connection, a "blocking" read is sometimes used which
+# keeps checking for a specific message, but sleeps for a bit if nothing's
+# found. This is only during e.g. login. Blocking receive in normal client
+# operation uses CSLEEP_START_BLOCKING
+SLEEP_READ_BLOCKING_INTERNAL = 0.1
+
+#
+# Ping/pong times (in seconds)
+#
+PING_INTERVAL = 10
+PING_TIMEOUT = 5
+LOGIN_TIMEOUT = 5
 
 
 # Shared string hashing function
@@ -57,8 +107,8 @@ def set_logging_level(level=None):
 
     Loggers of individual threads can be accessed using their ``log`` property.
     """
-    global logging_level
-    logging_level = level
+    global _LOGGING_LEVEL
+    _LOGGING_LEVEL = level
 
 
 # Build public API
