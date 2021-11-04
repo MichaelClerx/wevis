@@ -92,6 +92,7 @@ class Server(threading.Thread):
         self._sock.setblocking(False)
 
         # Bind socket
+        self._log.info(f'Listening on {self._host}:{self._port}')
         self._sock.bind((self._host, self._port))
 
         # Run as background process

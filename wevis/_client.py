@@ -176,7 +176,7 @@ class Client(threading.Thread):
             raise RuntimeError('Already connected.')
 
         # Create socket connection
-        self._log.debug('Creating socket')
+        self._log.info(f'Connecting to {self._host}:{self._port}')
         self._conn = socket.socket()
         self._conn.connect((self._host, self._port))
         self._conn.setblocking(False)
