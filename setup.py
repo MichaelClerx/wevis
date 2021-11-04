@@ -45,5 +45,5 @@ setup(
             'flake8>=3',            # For code style checking
         ],
     },
-    python_requires='>=3.5',
+    python_requires='>=3.6',
 )

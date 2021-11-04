@@ -5,8 +5,8 @@ Server/client module for Where's Ben Nevis.
 import sys
 
 # Check Python version
-if sys.hexversion < 0x03050000:
-    raise RuntimeError('wevis requires Python 3.5 or newer.')
+if sys.hexversion < 0x03060000:
+    raise RuntimeError('wevis requires Python 3.6 or newer.')
 
 # Wevis version
 from ._version import __version__
