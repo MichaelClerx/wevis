@@ -1,8 +1,11 @@
-# Time-commands
+# Time messages
 WhatTimeIsIt
-ItIs, hours=int, minutes=int
+ItIs hours=int minutes=int
 
-# Identify commands
+# Identity messages
 WhoAmI
-YouAre, name=str
+YouAre name=str
 
+# Float arrays
+PleaseMayIHaveSomeFloats singles=int doubles=int
+SomeFloats singles=?f doubles=?d

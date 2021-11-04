@@ -26,33 +26,40 @@ class MessageDefinition(object):
     """
     Defines a message.
 
-    Statically, this class acts as a registry of available messages.
+    Creating a new ``MessageDefinition`` registers a message type with the name
+    ``name`` and arguments given by keyword arguments ``arg_name=type``.
+    Server and client need to use agreed upon message definitions.
+
+    Supported argument types are
+
+    - ``int``, a 4 byte signed integer.
+    - ``float``, an 8 byte float.
+    - ``str``,  a variable-length unicode string.
+    - ``bytes``, a variable-length bytes string.
+    - ``'?f'``, a variable-length array of 4 byte floats.
+    - ``'?d'``, a variable-length array of 8 byte floats.
+
     """
 
     # Static variables
-    _messages = {}
+    _names = {}
     _ids = {}
     _last_id = 0
-    TYPES = {int: 'i', float: 'd', str: 's', bytes: 'b'}
 
     def __init__(self, _name, **_arguments):
-        """
-        Registers a new message with the name ``_name`` and any arguments
-        given as ``name=type`` keyword arguments.
+        # Notes:
+        # - Message definitions are immutable objects.
+        # - The constructor argument names start with an underscore so that
+        #   "name" and "arguments" can still be used as message argument names.
 
-        Notes:
-        - Message definitions are immutable objects.
-        - The constructor argument names start with an underscore so that e.g.
-          "name" can still be used for a message argument.
-        """
         # Make sure that the name is OK
         if NAME.match(_name) is None:
             raise ValueError(
                 'Message name must start with letter and consist only of'
-                ' letters, numbers, or underscores.')
+                f' letters, numbers, or underscores. Got "{_name}".')
 
         # Make sure that the message is not already defined
-        if _name in self._messages:
+        if _name in self._names:
             raise ValueError(f'Message "{_name}" already defined.')
 
         # Private variables
@@ -81,14 +88,11 @@ class MessageDefinition(object):
             elif kind == float:
                 self._pack_code.append(b'd')
                 self._pack_size += 8
-            elif kind == str:
-                self._pack_code.append(b'i')
+            elif kind in (str, bytes, '?f', '?d'):
+                # Unsigned int for size
+                self._pack_code.append(b'I')
                 self._pack_size += 4
-                self._vectors.append((i, str))
-            elif kind == bytes:
-                self._pack_code.append(b'i')
-                self._pack_size += 4
-                self._vectors.append((i, bytes))
+                self._vectors.append((i, kind))
             else:
                 raise ValueError('Unknown argument type <' + kind + '>.')
             i += 1
@@ -100,7 +104,7 @@ class MessageDefinition(object):
         self._id = MessageDefinition._last_id
 
         # Register this message definition
-        MessageDefinition._messages[self._name] = self
+        MessageDefinition._names[self._name] = self
         MessageDefinition._ids[self._id] = self
 
     def arguments(self):
@@ -109,30 +113,16 @@ class MessageDefinition(object):
         """
         return self._arguments.items()
 
-    #@staticmethod
-    #def exists(name):
-    #    """ Checks if a message with given ``name`` is defined. """
-    #    return name in MessageDefinition._messages
-
-    #@staticmethod
-    #def id_exists(id):
-    #    """ Checks if a message with the given ``id`` is defined. """
-    #    return id in MessageDefinition._ids
-
-    @staticmethod
-    def fetch(name):
-        """ Fetches the message definition with the given ``name``. """
-        return MessageDefinition._messages[name]
-
-    #@staticmethod
-    #def fetch_by_id(cid):
-    #    return MessageDefinition._ids[cid]
-
-    def get_argument_type(self, name):
+    def argument_type(self, name):
         """
         Returns the data type required for the argument specified by ``name``.
         """
         return self._arguments[name]
+
+    @staticmethod
+    def fetch(name):
+        """ Fetches the message definition with the given ``name``. """
+        return MessageDefinition._names[name]
 
     def __hash__(self):
         """ Returns a hash for this message definition. """
@@ -152,7 +142,7 @@ class MessageDefinition(object):
         """ Packs a message into binary form for network transmission. """
 
         # Pack message id
-        b = struct.pack(b'<i', self._id)
+        b = struct.pack(b'<I', self._id)
 
         # Fixed length arguments and variable length argument sizes
         fixed = []
@@ -160,44 +150,51 @@ class MessageDefinition(object):
             fixed.append(message.get(name))
 
         # Create vector packing string and add lengths to list of fixed args
-        vectors = []
         vector_code = [b'<']
+        vector_data = []
         for i, kind in self._vectors:
 
             # Get value, length of value
-            if kind == str:
-                v = fixed[i].encode('utf-8')
-            elif kind == bytes:
-                v = fixed[i]
-            else:
-                raise Exception(f'Unknown vector variable type {kind}.')
+            v = fixed[i]
             n = len(v)
 
             # Replace value in fixed list with length of value
             fixed[i] = n
 
-            # Add value to list of vector data
-            vectors.append(v)
+            # Add value (string) or values (list) to list of vector data
+            if kind == str:
+                vector_data.append(v.encode('utf-8'))
+            elif kind == bytes:
+                vector_data.append(v)
+            else:
+                vector_data.extend(v)
 
             # Add packing code to list of vector packing codes
             vector_code.append(str(n).encode('utf-8'))
             if kind in (str, bytes):
                 vector_code.append(b's')
+            elif kind == '?f':
+                vector_code.append(b'f')
+            elif kind == '?d':
+                vector_code.append(b'd')
+            else:
+                raise Exception(f'Unknown vector variable type {kind}.')
 
         # Pack fixed size arguments
         b += struct.pack(self._pack_code, *fixed)
 
         # Pack variable size arguments
-        if vectors:
-            b += struct.pack(b''.join(vector_code), *vectors)
+        if vector_data:
+            b += struct.pack(b''.join(vector_code), *vector_data)
 
         return b
 
     @staticmethod
     def unpack(data):
         """ Unpacks a binary coded message. """
+
         # Fetch the message definition
-        cid = struct.unpack(b'<i', data[0:4])[0]
+        cid = struct.unpack(b'<I', data[0:4])[0]
         definition = MessageDefinition._ids[cid]
 
         # Create an empty message
@@ -208,30 +205,45 @@ class MessageDefinition(object):
         fixed = struct.unpack(code, data[4:4 + size])
 
         # Unpack variable size arguments
-        vectors = None
+        vector_data = None
         if definition._vectors:
-            code = [b'<']
+            vector_code = [b'<']
             for i, kind in definition._vectors:
-                code.append(str(fixed[i]).encode('utf-8'))
+                # Add vector size
+                vector_code.append(str(fixed[i]).encode('utf-8'))
+                # Add vector contents type
                 if kind in (str, bytes):
-                    code.append(b's')
+                    vector_code.append(b's')
+                elif kind == '?f':
+                    vector_code.append(b'f')
+                elif kind == '?d':
+                    vector_code.append(b'd')
                 else:
-                    raise Exception(f'Unknown data type {kind}.')
-            code = b''.join(code)
-            vectors = struct.unpack(code, data[4 + size:])
+                    raise Exception(f'Unknown vector data type {kind}.')
+            vector_code = b''.join(vector_code)
+            vector_data = struct.unpack(vector_code, data[4 + size:])
 
         # Set arguments in message
         args = {}
         fixed = iter(fixed)
-        if vectors:
-            vectors = iter(vectors)
-        for name, kind in definition._arguments.items():
-            if kind == str:
-                args[name] = next(vectors).decode('utf-8')
-            elif kind == bytes:
-                args[name] = next(vectors)
-            else:
-                args[name] = next(fixed)
+        ivector = 0
+        try:
+            for name, kind in definition._arguments.items():
+                v = next(fixed)
+                if kind == str:
+                    args[name] = vector_data[ivector].decode('utf-8')
+                    ivector += 1
+                elif kind == bytes:
+                    args[name] = vector_data[ivector]
+                    ivector += 1
+                elif kind in ('?d', '?f'):
+                    args[name] = vector_data[ivector:ivector + v]
+                    ivector += v
+                else:
+                    args[name] = v
+        except StopIteration:
+            raise Exception(
+                'Unexpected StopIteration when unpacking {message.name}.')
         message.set(**args)
 
         # Return unpacked arguments
@@ -241,7 +253,7 @@ class MessageDefinition(object):
     def setup():
         """ Registers built-in and custom messages. """
         if MessageDefinition._initialized:
-            raise Exception("Message definitions are already initialized")
+            raise Exception('Message definitions are already initialized')
 
 
 class Message(object):
@@ -302,8 +314,11 @@ class Message(object):
 
         """
         for name, value in kwargs.items():
-            kind = self._definition.get_argument_type(name)
-            self._argument_values[name] = kind(value)
+            kind = self._definition.argument_type(name)
+            if kind in ('?f', '?d'):
+                self._argument_values[name] = [float(x) for x in value]
+            else:
+                self._argument_values[name] = kind(value)
 
     def __str__(self):
         s = [f'Message<{self._definition.id}:{self._definition.name}>']
@@ -340,6 +355,7 @@ class MessageReader(object):
 
     def read(self):
         """ Returns a :class:`Message` if one is available, else ``None``. """
+
         if not self._size:
             # Read message size
             try:
@@ -347,14 +363,15 @@ class MessageReader(object):
             except socket.error as e:
                 if e.errno == errno.EWOULDBLOCK:
                     return None
-                raise e
+                raise
             self._read = len(self._buff)
             if self._read == 0:
                 raise SocketClosedError('Socket closed unexpectedly.')
             if self._read == 4:
-                self._size = struct.unpack(b'<i', self._buff)[0]
+                self._size = struct.unpack(b'<I', self._buff)[0]
                 self._buff = b''
                 self._read = 0
+
         # New if statement, because size may now be set.
         if self._size:
             # Read message
@@ -363,7 +380,7 @@ class MessageReader(object):
             except socket.error as e:
                 if e.errno == errno.EWOULDBLOCK:
                     return None
-                raise e
+                raise
             self._read = len(self._buff)
             if self._read == 0:
                 raise SocketClosedError('Socket closed unexpectedly.')
@@ -373,6 +390,7 @@ class MessageReader(object):
                 self._buff = b''
                 self._read = 0
                 return message
+
         return None
 
     def _read_blocking_internal(self, timeout=None):
@@ -480,6 +498,8 @@ class DefinitionList(object):
             'float': float,
             'str': str,
             'bytes': bytes,
+            '?f': '?f',
+            '?d': '?d',
         }
 
         defs = DefinitionList()
@@ -498,7 +518,7 @@ class DefinitionList(object):
                     continue
 
                 # Parse line
-                parts = [x.strip() for x in line.split(',')]
+                parts = [x.strip() for x in line.split()]
                 name = parts[0]
                 args = {}
                 for part in parts[1:]:

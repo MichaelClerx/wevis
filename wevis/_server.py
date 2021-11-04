@@ -1,16 +1,6 @@
 #!/usr/bin/env python3
 """
 Server code for Where's Ben Nevis.
-
-A server uses several threads:
-
-- A single :class:`Server`, which manages a listener, manager, and room.
-- A single :class:`Listener`, which listens for new connections.
-- A single :class:`Manager`, which passes messages from and to connections.
-- A single :class:`Room`, provides by the user code, which receives and
-  responds to client messages.
-
-All threads except the ``Server`` are started by the Server.
 """
 import logging
 import queue
@@ -590,7 +580,7 @@ class Connection(object):
         try:
             message = self._reader.read()
         except Exception as e:
-            return self.close(e)
+            return self.close(str(e))
 
         while message:
             if message.name == '_pong':
@@ -608,7 +598,7 @@ class Connection(object):
             try:
                 message = self._reader.read()
             except Exception as e:
-                return self.close(e)
+                return self.close(str(e))
 
         # Check connection status
         if time.time() > self._ping_time:
@@ -719,3 +709,29 @@ class Room(threading.Thread):
         advised.
         """
         pass
+
+
+class User(object):
+    """
+    A server user.
+
+    Server-side code built on ``wevis`` can override this class and add in
+    extra properties. These will be available for a ``Room`` when a connection
+    is passed in (through ``connection.user``).
+
+    Arguments
+
+    ``username``
+        The username to connect with.
+
+    """
+    def __init__(self, username):
+        super().__init__()
+        self._username = username
+
+    @property
+    def name(self):
+        return self._username
+
+    def __str__(self):
+        return str(self._username)

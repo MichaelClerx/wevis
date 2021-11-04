@@ -120,14 +120,14 @@ from ._message import (  # noqa
     MessageDefinition,
     MessageReader,
     MessageWriter,
-    SocketClosedError
-)
-from ._user import (     # noqa
-    User,
+    SocketClosedError,
 )
 from ._server import (   # noqa
+    Listener,
+    Manager,
     Room,
     Server,
+    User,
 )
 from ._client import (   # noqa
     Client,

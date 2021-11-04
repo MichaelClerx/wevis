@@ -21,8 +21,19 @@ class TimeRoom(wevis.Room):
             import datetime
             t = datetime.datetime.now()
             connection.q('ItIs', hours=t.hour, minutes=t.minute)
+
         elif message.name == 'WhoAmI':
             connection.q('YouAre', name=connection.user.name)
+
+        elif message.name == 'PleaseMayIHaveSomeFloats':
+            nf = message.get('doubles')
+            nd = message.get('singles')
+
+            reply = wevis.Message('SomeFloats')
+            reply.set(doubles=[x / 10 for x in range(nd)])
+            reply.set(singles=[x / 10 for x in range(nf)])
+            connection.queue(reply)
+
         else:
             raise Exception(f'Unexpected message: {message}')
 

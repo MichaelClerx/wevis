@@ -26,6 +26,7 @@ To write a server, a user provides
 - a method ``version_validator`` used to check compatibility when a client wants to connect
 - a method ``user_validator`` used to check login credentials
 - a subclass of ``wevis.Room`` that provides a method ``messages`` to define message types and a method ``handle(connection, message)`` to handle arriving messages.
+- in most cases you'll also want to subclass ``wevis.User`` and use it to store user properties.
 
 For example:
 
@@ -83,13 +84,13 @@ The message definitions can be writen in code:
 but in this example they are loaded from a plain text file:
 
 ```
-# Time-commands
+# Time messages
 WhatTimeIsIt
-ItIs, hours=int, minutes=int
+ItIs hours=int minutes=int
 
-# Identify commands
+# Identity messages
 WhoAmI
-YouAre, name=str
+YouAre name=str
 ```
 
 Here, the code for ``launch()`` simply starts and monitors the server thread:
