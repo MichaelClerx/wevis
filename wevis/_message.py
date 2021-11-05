@@ -430,7 +430,7 @@ class MessageWriter(object):
     def send_blocking(self, message):
         """ Sends a message immediately, blocks until done. """
         b = message.pack()
-        b = struct.pack(b'<i', len(b)) + b
+        b = struct.pack(b'<I', len(b)) + b
         size = len(b)
         n = 0
         while n < size:
@@ -438,14 +438,14 @@ class MessageWriter(object):
                 n += self._conn.send(b[n:])
             except socket.error as e:
                 if e.errno == errno.EWOULDBLOCK:
-                    time.sleep(0.5)
+                    time.sleep(wevis.SLEEP_WRITE_BLOCKING_INTERNAL)
                 else:
                     raise e
 
     def queue(self, message):
         """ Queues a message for later transmission. """
         b = message.pack()
-        self._buff += struct.pack(b'<i', len(b)) + b
+        self._buff += struct.pack(b'<I', len(b)) + b
 
     def send(self):
         """ Sends any waiting data. """

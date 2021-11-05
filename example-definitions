@@ -1,3 +1,6 @@
+# Initial message saying server is ready for client
+ServerReady
+
 # Time messages
 WhatTimeIsIt
 ItIs hours=int minutes=int

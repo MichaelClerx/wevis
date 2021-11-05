@@ -11,10 +11,10 @@ logging.basicConfig(stream=sys.stdout)
 defs = wevis.DefinitionList.from_file('example-definitions')
 defs.instantiate()
 
-version = (1, 0, 0)
-client = wevis.Client(version, 'michael', 'mypassword')
+client = wevis.Client('michael', 'mypassword', '1.0.0')
 try:
     client.start_blocking()
+    client.receive_blocking('ServerReady')
 
     client.q('WhoAmI')
     r = client.receive_blocking('YouAre')

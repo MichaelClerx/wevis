@@ -18,8 +18,9 @@ Example usage in an asynchronous application::
 
 Example usage in a sequential application::
 
-    c = wevis.Client(version=(1, 2, 3), username='michael', password='michael')
+    c = wevis.Client(username='michael', password='michael', version='1.2.3')
     c.start()
+    c.receive_blocking('ReadyForRequests')
 
     try:
         for i in range(100):
@@ -99,7 +100,7 @@ class Client(threading.Thread):
     CONNECTED = 2
     POST_RUN = 4
 
-    def __init__(self, version, username, password,
+    def __init__(self, username, password, version,
                  host=None, port=None, name='wevis.client'):
         super(Client, self).__init__(name=name)
 
@@ -112,15 +113,11 @@ class Client(threading.Thread):
             self._log.setLevel(wevis._LOGGING_LEVEL)
         self._log.info('Creating client')
 
-        # Version
-        if len(version) != 3:
-            raise ValueError('Version must be three integers.')
-        self._version = [int(x) for x in version]
-        del(version)
-
-        # User credentials
-        self._username = username
-        self._password = password
+        # User credentials and version
+        self._username = str(username)
+        self._password = str(password)
+        self._version = str(version)
+        del(username, password, version)
 
         # Host and port
         self._host = host if host else socket.gethostname()
@@ -195,9 +192,7 @@ class Client(threading.Thread):
             '_login',
             username=self._username,
             password=wevis.encrypt(self._password, ready.get('salt')),
-            major=self._version[0],
-            minor=self._version[1],
-            revision=self._version[2],
+            version=self._version,
         ))
 
         # Check result

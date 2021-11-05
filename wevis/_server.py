@@ -19,19 +19,18 @@ class Server(threading.Thread):
 
     Arguments:
 
-    ``version_validator``
-        A callable that will be called with integer arguments
-        ``(major, minor, revision)`` to test if new connections are compatible
-        with the current version. Should return ``True`` if so, or ``False`` if
-        the client needs to be updated.
     ``user_validator``
-        A callable that will be called with ``(username, password, salt)`` to
-        test if user credentials are valid. The ``username`` will be a plain
-        text username, and ``password`` and ``salt`` will be such that calling
-        :meth:`encrypt(plain_password, salt)` returns ``password``. If the
-        credentials are OK, the callable should return an instance of
-        :class:`User` (which may be a subclass). If not, ``None`` should be
-        returned.
+        A callable that will be called with the string arguments
+        ``(username, password, salt, version)`` to test if user credentials are
+        valid. The ``username`` will be a plain text username, and ``password``
+        and ``salt`` will be strings such that calling
+        :meth:`encrypt(plain_password, salt)` returns ``password``.
+        The ``version`` string can be used to test if the client is compatible
+        with the current server.
+        If credentials and version are OK, the callable should return an
+        instance of :class:`User` (or a subclass). If not, the method should
+        return either ``None`` or a string that specifies a reason for
+        rejection.
     ``room``
         A :class:`wevis.Room` instance to handle incoming messages.
     ``host``
@@ -47,8 +46,8 @@ class Server(threading.Thread):
     RUNNING = 1
     POST_RUN = 2
 
-    def __init__(self, version_validator, user_validator, room,
-                 host=None, port=None, name='wevis.server'):
+    def __init__(self, user_validator, room, host=None, port=None,
+                 name='wevis.server'):
         super().__init__(name=name)
 
         # Logging
@@ -60,10 +59,9 @@ class Server(threading.Thread):
         # Status
         self._status = Server.PRE_RUN
 
-        # User and version validation
-        self._version_validator = version_validator
+        # User validation
         self._user_validator = user_validator
-        del(version_validator, user_validator)
+        del(user_validator)
 
         # Room (can be extended to multiple, multiprocessing/distributed in the
         # future).
@@ -531,21 +529,20 @@ class Connection(object):
                     '_loginReject', reason='Unexpected message.'))
                 return self.close('Rejected login: unexpected message.')
 
-            # Validate user version
-            version = (message.get('major'), message.get('minor'),
-                       message.get('revision'))
-            if not self._manager.server._version_validator(*version):
-                self._writer.send_blocking(wevis.Message(
-                    '_loginReject', reason='Client requires update.'))
-                return self.close('Rejected login: client requires update.')
-
-            # Validate login credentials
+            # Validate login credentials and version
             user = self._manager.server._user_validator(
-                message.get('username'), message.get('password'), self._salt)
-            if not user:
+                message.get('username'),
+                message.get('password'),
+                self._salt,
+                message.get('version'))
+            if not isinstance(user, User):
+                if isinstance(user, str):
+                    reason = user
+                else:
+                    reason = 'Invalid credentials.'
                 self._writer.send_blocking(wevis.Message(
-                    '_loginReject', reason='Invalid credentials.'))
-                return self.close('Rejected login: invalid credentials.')
+                    '_loginReject', reason=reason))
+                return self.close(f'Rejected login: {reason}')
 
             # Validate user count: Do this after password validation so that we
             # don't give out info on whether users are logged in or not.
@@ -560,8 +557,8 @@ class Connection(object):
 
             # Accept
             self._manager.log.debug(f'Accepted login from {user}.')
-            self._writer.send_blocking(wevis.Message('_loginAccept'))
             self._user = user
+            self._writer.send_blocking(wevis.Message('_loginAccept'))
             self._manager.user_enter(self)
 
         # Login must happen within x seconds
@@ -583,7 +580,7 @@ class Connection(object):
         except Exception as e:
             return self.close(str(e))
 
-        while message:
+        while message is not None:
             if message.name == '_pong':
                 self._manager.log.debug(f'Pong from {self._user.name}')
                 self._ping_sent = False
@@ -696,18 +693,18 @@ class Room(threading.Thread):
 
     def user_enter(self, connection):
         """
-        This function is called whenever a user enters this room; overwrite it
-        to e.g. send welcome messages.
+        This function is called whenever a user enters this room.
+
+        This method can be overwritten for user management, or to send a first
+        message saying the room is ready to receive client messages.
         """
         pass
 
-    def user_exit(self, connection):
+    def user_exit(self, user):
         """
         This function is called whenever a user leaves this room.
 
-        It can be overwritten for e.g. user management, but the ``connection``
-        may no longer be open at this point, so sending messages is not
-        advised.
+        It can be overwritten for e.g. user management.
         """
         pass
 

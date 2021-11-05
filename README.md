@@ -23,8 +23,7 @@ Users do **not** need to handle the case where messages arrive out of order.
 
 To write a server, a user provides
 
-- a method ``version_validator`` used to check compatibility when a client wants to connect
-- a method ``user_validator`` used to check login credentials
+- a method ``user_validator`` used to check login credentials, and optionally a version number to ensure compatibility
 - a subclass of ``wevis.Room`` that provides a method ``messages`` to define message types and a method ``handle(connection, message)`` to handle arriving messages.
 - in most cases you'll also want to subclass ``wevis.User`` and use it to store user properties.
 
@@ -34,11 +33,8 @@ For example:
 #!/usr/bin/env python3
 import wevis
 
-def version_validator(major, minor, revision):
-    return major >= 1
 
-
-def user_validator(username, password, salt):
+def user_validator(username, password, salt, version):
     if username == 'michael' and password == wevis.encrypt('mypassword', salt):
         return wevis.User('michael')
     return False
@@ -55,6 +51,9 @@ class TimeRoom(wevis.Room):
         else:
             raise Exception(f'Unexpected message: {message}')
 
+    def user_enter(self, connection):
+        connection.q('ServerReady')
+
 
 if __name__ == '__main__':
     import logging
@@ -66,7 +65,7 @@ if __name__ == '__main__':
     defs.instantiate()
 
     room = TimeRoom()
-    server = wevis.Server(version_validator, user_validator, room)
+    server = wevis.Server(user_validator, room)
     server.launch()
 ```
 
@@ -74,6 +73,7 @@ The message definitions can be writen in code:
 
 ```
     defs = wevis.DefinitionList()
+    defs.add('ServerReady')
     defs.add('WhatTimeIsIt')
     defs.add('ItIs', hours=int, minutes=int)
     defs.add('WhoAmI')
@@ -84,6 +84,9 @@ The message definitions can be writen in code:
 but in this example they are loaded from a plain text file:
 
 ```
+# Welcome message
+ServerReady
+
 # Time messages
 WhatTimeIsIt
 ItIs hours=int minutes=int
@@ -125,10 +128,10 @@ logging.basicConfig(stream=sys.stdout)
 defs = wevis.DefinitionList.from_file('example-definitions')
 defs.instantiate()
 
-version = (1, 0, 0)
-client = wevis.Client(version, 'michael', 'mypassword')
+client = wevis.Client('michael', 'mypassword', '1.0.0')
 try:
     client.start_blocking()
+    client.receive_blocking('ServerReady')
 
     client.q('WhoAmI')
     r = client.receive_blocking('YouAre')

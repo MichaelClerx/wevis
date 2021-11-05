@@ -62,6 +62,8 @@ CSLEEP_START_BLOCKING = 0.1
 # found. This is only during e.g. login. Blocking receive in normal client
 # operation uses CSLEEP_START_BLOCKING
 SLEEP_READ_BLOCKING_INTERNAL = 0.1
+# Similar, but for a blocking send
+SLEEP_WRITE_BLOCKING_INTERNAL = 0.1
 
 #
 # Ping/pong times (in seconds)
@@ -138,9 +140,7 @@ from ._client import (   # noqa
 MessageDefinition('_ping')
 MessageDefinition('_pong')
 MessageDefinition('_welcome', salt=str)
-MessageDefinition('_login', username=str, password=str,
-                  # TODO: Use vector of ints?
-                  major=int, minor=int, revision=int)
+MessageDefinition('_login', username=str, password=str, version=str)
 MessageDefinition('_loginReject', reason=str)
 MessageDefinition('_loginAccept')
 

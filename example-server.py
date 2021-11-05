@@ -5,11 +5,7 @@
 import wevis
 
 
-def version_validator(major, minor, revision):
-    return major >= 1
-
-
-def user_validator(username, password, salt):
+def user_validator(username, password, salt, version):
     if username == 'michael' and password == wevis.encrypt('mypassword', salt):
         return wevis.User('michael')
     return False
@@ -37,6 +33,9 @@ class TimeRoom(wevis.Room):
         else:
             raise Exception(f'Unexpected message: {message}')
 
+    def user_enter(self, connection):
+        connection.q('ServerReady')
+
 
 if __name__ == '__main__':
     import logging
@@ -48,5 +47,5 @@ if __name__ == '__main__':
     defs.instantiate()
 
     room = TimeRoom()
-    server = wevis.Server(version_validator, user_validator, room)
+    server = wevis.Server(user_validator, room)
     server.launch()
