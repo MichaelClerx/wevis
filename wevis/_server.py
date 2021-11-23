@@ -146,7 +146,17 @@ class Server(threading.Thread):
         self._listener.start()
         self._room.start()
         while not self._halt.is_set():
-            time.sleep(wevis.SSLEEP_SERVER)
+            if not self._listener.is_alive():
+                self._log.info('Listener halted unexpectedly')
+                self._halt.set()
+            elif not self._manager.is_alive():
+                self._log.info('Manager halted unexpectedly')
+                self._halt.set()
+            elif not self._room.is_alive():
+                self._log.info('Room halted unexpectedly')
+                self._halt.set()
+            else:
+                time.sleep(wevis.SSLEEP_SERVER)
 
         # Check if everything is shutting down here. Then delete the objects
         if self._listener.is_alive():
