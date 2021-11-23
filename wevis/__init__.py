@@ -28,11 +28,11 @@ MAX_CONNECTIONS_PER_USER = 1
 # small.
 #
 # Room: Minimum delay between any two commands handled by room.
-SSLEEP_ROOM = 1e-6
+SSLEEP_ROOM = 1e-2
 # Manager: Minimum delay between any two cycles of the manager. In each cycle
 #          the manager checks connections are alive, checks if new connections
 #          were passed in by the listener, and handles all queued commands.
-SSLEEP_MANAGER = 1e-6
+SSLEEP_MANAGER = 1e-2
 # Listener: Delay between two checks for a new connection
 SSLEEP_LISTENER = 0.2
 # Server launch: Time between two checks that the main thread is running
@@ -46,10 +46,10 @@ SSLEEP_SHUTDOWN = 1
 # Client sleep times (in seconds)
 #
 # Receive a message in blocking mode: time between checks
-CSLEEP_RECEIVE_BLOCKING = 1e-8
+CSLEEP_RECEIVE_BLOCKING = 1e-2
 # Main thread: Minimum delay between any two cycles of the client. In each
 #              cycle the client sends and receives messages
-CSLEEP_RUN = 1e-8
+CSLEEP_RUN = 1e-2
 # Start blocking: Time between checks that the client has started (checks stop
 #                 as soon as the client is online).
 CSLEEP_START_BLOCKING = 0.1
